@@ -2,7 +2,7 @@ from django.shortcuts import render
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
-from .models import Question,Form
+from .models import Question,Form,Responses,ReponseAnswer,Choice
 from .serializer import QuestionSerializer, FormSerializer
 # Create your views here.
 
@@ -26,4 +26,46 @@ class FormAPI(APIView):
             'status': status.HTTP_200_OK,
             "message" : "Form fetched successfully",
             "data": serializer.data 
+        })
+    
+
+class StoreResponseAPI(APIView):
+    def post (self, request):
+        data= request.data
+        if data.get('form_code') is None or data.get('responses') is None:
+            return Response({
+                'status': status.HTTP_400_BAD_REQUEST,
+                "message" : "Form code and responses both are required",
+                "data": {} 
+            })
+        responses = data.get('responses')
+        response_obj= Responses.objects.create(
+            form= Form.objects.get(code=data.get('form_code')),
+            responder_email= data.get('responder_email')
+        )
+        for response in responses:
+            question = Question.objects.get(id=response.get('question_id'))
+            for answer in response['answer']:
+                if question.question_type.lower() in ("long answer", "long answer"):
+                    answer_obj= ReponseAnswer.objects.create(
+                    answer= answer,
+                    answer_to= question
+                )
+                else:
+                    answer_obj= ReponseAnswer.objects.create(
+                    answer= Choice.objects.get(id=answer).choice,
+                    answer_to= question
+                )
+
+
+
+                
+                response_obj.responses.add(answer_obj)
+
+
+
+        return Response({
+            'status': status.HTTP_200_OK,
+            "message" : "Your response has been recorded successfully",
+            "data": {} 
         })
